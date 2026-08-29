@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Review Analysis — Preview</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #09090e;
+      --surface:  #111118;
+      --card:     #16161f;
+      --border:   #252535;
+      --pos:      #22c55e;
+      --neg:      #ef4444;
+      --accent:   #818cf8;
+      --text:     #e4e4f0;
+      --muted:    #5a5a78;
+      --subtle:   #2a2a40;
+    }
+
+    html, body {
+      height: 100%; background: var(--bg);
+      color: var(--text); font-family: 'DM Sans', sans-serif;
+    }
+
+    .shell { display: flex; height: 100vh; overflow: hidden; }
+
+    .sidebar {
+      width: 340px; flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    .main {
+      flex: 1; overflow-y: auto;
+      padding: 40px 48px;
+    }
+
+    .sb-header {
+      padding: 28px 24px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sb-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px; letter-spacing: 0.06em;
+      color: var(--text); margin-bottom: 14px;
+    }
+    .sb-title span { color: var(--accent); }
+
+    .search-wrap { position: relative; }
+    .search-input {
+      width: 100%; background: var(--card);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 38px 10px 14px;
+      font-family: 'DM Sans', sans-serif; font-size: 14px;
+      color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-input::placeholder { color: var(--muted); }
+    .search-input:focus { border-color: var(--accent); }
+    .search-btn {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 16px; padding: 2px;
+      transition: color 0.15s;
+    }
+    .search-btn:hover { color: var(--accent); }
+
+    .results-list {
+      flex: 1; overflow-y: auto; padding: 8px 0;
+    }
+    .results-list::-webkit-scrollbar { width: 4px; }
+    .results-list::-webkit-scrollbar-thumb { background: var(--subtle); border-radius: 2px; }
+
+    .result-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 24px; cursor: pointer;
+      transition: background 0.12s; border-left: 3px solid transparent;
+    }
+    .result-item:hover { background: var(--card); }
+    .result-item.active {
+      background: var(--card);
+      border-left-color: var(--accent);
+    }
+    .result-poster-placeholder {
+      width: 36px; height: 54px; border-radius: 4px;
+      background: var(--subtle); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .result-info { min-width: 0; }
+    .result-name {
+      font-size: 13px; font-weight: 500; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .result-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .sb-empty {
+      padding: 32px 24px; text-align: center;
+      font-size: 13px; color: var(--muted); line-height: 1.6;
+    }
+    .sb-spinner { padding: 24px; display: flex; justify-content: center; }
+
+    .main-header { margin-bottom: 36px; }
+    .eyebrow {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+    }
+    .main-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(44px, 6vw, 68px);
+      line-height: 0.9; letter-spacing: 0.03em; color: var(--text);
+    }
+    .main-title span { color: var(--accent); }
+    .main-sub {
+      margin-top: 14px; font-size: 14px; font-weight: 300;
+      color: var(--muted); line-height: 1.6; max-width: 480px;
+    }
+
+    .movie-hero {
+      display: flex; gap: 28px; align-items: flex-start;
+      margin-bottom: 32px;
+      animation: fadeUp 0.3s ease both;
+    }
+    .movie-poster-ph {
+      width: 110px; height: 165px; border-radius: 10px;
+      background: var(--subtle); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px;
+    }
+    .movie-info { flex: 1; padding-top: 4px; }
+    .movie-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px; letter-spacing: 0.04em; line-height: 1;
+      color: var(--text); margin-bottom: 6px;
+    }
+    .movie-meta-row {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      font-size: 12px; color: var(--muted); margin-bottom: 12px;
+    }
+    .movie-meta-row span { display: flex; align-items: center; gap: 4px; }
+    .movie-overview {
+      font-size: 13px; font-weight: 300; color: var(--muted);
+      line-height: 1.65; max-width: 520px;
+      display: -webkit-box; -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    .loading-bar {
+      height: 3px; background: var(--border); border-radius: 99px;
+      overflow: hidden; margin-bottom: 28px;
+    }
+    .loading-bar-fill {
+      height: 100%; width: 40%;
+      background: var(--accent); border-radius: 99px;
+      animation: slide 1.2s ease-in-out infinite;
+    }
+    @keyframes slide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 12px; margin-bottom: 28px;
+      animation: fadeUp 0.35s ease 0.05s both;
+    }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 18px;
+    }
+    .stat-label {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+    }
+    .stat-val {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px; letter-spacing: 0.04em; line-height: 1;
+    }
+    .stat-val.pos { color: var(--pos); }
+    .stat-val.neg { color: var(--neg); }
+    .stat-val.neutral { color: var(--accent); }
+    .stat-val.plain { color: var(--text); }
+
+    .sentiment-bar-wrap {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px 22px;
+      margin-bottom: 28px;
+      animation: fadeUp 0.35s ease 0.1s both;
+    }
+    .bar-label-row {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: var(--muted); margin-bottom: 10px;
+    }
+    .bar-track {
+      height: 8px; background: var(--border); border-radius: 99px; overflow: hidden;
+      display: flex;
+    }
+    .bar-pos {
+      height: 100%; background: var(--pos); border-radius: 99px 0 0 99px;
+      transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
+    }
+    .bar-neg {
+      height: 100%; background: var(--neg); border-radius: 0 99px 99px 0;
+      transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
+    }
+
+    .section-title {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .reviews-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 14px; margin-bottom: 28px;
+      animation: fadeUp 0.35s ease 0.15s both;
+    }
+    .review-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px; overflow: hidden;
+    }
+    .review-card.pos-card { border-top: 2px solid var(--pos); }
+    .review-card.neg-card { border-top: 2px solid var(--neg); }
+    .review-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 10px; font-weight: 500; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 3px 8px;
+      border-radius: 4px; margin-bottom: 10px;
+    }
+    .review-tag.pos { background: rgba(34,197,94,0.12); color: var(--pos); }
+    .review-tag.neg { background: rgba(239,68,68,0.12);  color: var(--neg); }
+    .review-author { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .review-text {
+      font-size: 13px; font-weight: 300; line-height: 1.65;
+      color: var(--text); opacity: 0.85;
+      display: -webkit-box; -webkit-line-clamp: 5;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .review-conf {
+      margin-top: 10px; font-size: 11px; color: var(--muted);
+    }
+
+    .detail-list {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-bottom: 28px;
+      animation: fadeUp 0.35s ease 0.2s both;
+    }
+    .detail-row {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 14px;
+    }
+    .detail-num {
+      font-size: 11px; color: var(--muted); width: 22px; flex-shrink: 0;
+    }
+    .detail-badge {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+      flex-shrink: 0; width: 64px; text-align: center;
+    }
+    .detail-badge.pos { background: rgba(34,197,94,0.12); color: var(--pos); }
+    .detail-badge.neg { background: rgba(239,68,68,0.12);  color: var(--neg); }
+    .detail-track {
+      flex: 1; height: 4px; background: var(--border); border-radius: 99px; overflow: hidden;
+    }
+    .detail-fill {
+      height: 100%; border-radius: 99px;
+      transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
+    }
+    .detail-fill.pos { background: var(--pos); }
+    .detail-fill.neg { background: var(--neg); }
+    .detail-pct { font-size: 12px; color: var(--text); width: 38px; text-align: right; flex-shrink: 0; }
+    .detail-snippet {
+      font-size: 11px; color: var(--muted); flex: 1.5;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .custom-section {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px;
+      margin-bottom: 28px;
+      animation: fadeUp 0.35s ease 0.25s both;
+    }
+    .custom-textarea {
+      width: 100%; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px 14px; font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 300; color: var(--text);
+      resize: vertical; min-height: 90px; outline: none;
+      transition: border-color 0.15s; margin-bottom: 12px;
+    }
+    .custom-textarea::placeholder { color: var(--muted); }
+    .custom-textarea:focus { border-color: var(--accent); }
+    .custom-row { display: flex; justify-content: space-between; align-items: center; }
+    .custom-result {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .custom-badge {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px; letter-spacing: 0.06em;
+    }
+    .custom-badge.pos { color: var(--pos); }
+    .custom-badge.neg { color: var(--neg); }
+    .custom-score { font-size: 12px; color: var(--muted); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px;
+      padding: 9px 20px; font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: opacity 0.15s, transform 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+    .spinner {
+      width: 13px; height: 13px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.25);
+      border-top-color: #fff;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .idle {
+      display: flex; flex-direction: column;
+      align-items: flex-start; justify-content: center;
+      min-height: 60vh;
+    }
+    .idle-hint {
+      font-size: 14px; font-weight: 300; color: var(--muted);
+      line-height: 1.7; margin-top: 20px; max-width: 400px;
+    }
+    .idle-hint strong { color: var(--text); font-weight: 500; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .main::-webkit-scrollbar { width: 5px; }
+    .main::-webkit-scrollbar-thumb { background: var(--subtle); border-radius: 2px; }
+
+    @media (max-width: 768px) {
+      .shell { flex-direction: column; }
+      .sidebar { width: 100%; height: 280px; }
+      .main { padding: 24px 20px; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .reviews-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="sb-header">
+        <div class="sb-title">🎬 Sentiment<br><span>Analyser</span></div>
+        <div class="search-wrap">
+          <input class="search-input" id="searchInput" placeholder="Search a movie…" />
+          <button class="search-btn" id="searchBtn">↵</button>
+        </div>
+      </div>
+      <div class="results-list" id="resultsList">
+        <div class="sb-empty">Search for a movie above to get started.</div>
+      </div>
+    </aside>
+
+    <main class="main" id="mainPanel">
+      <div class="idle" id="idleScreen">
+        <p class="eyebrow">Naive Bayes · Movie Reviews</p>
+        <h1 class="main-title">Movie<br><span>Sentiment</span></h1>
+        <p class="idle-hint">
+          <strong>Search for a movie</strong> in the sidebar, then select it
+          to run a full sentiment analysis on its reviews.
+          <br><br>
+          You can also type your own review below and analyse it instantly.
+        </p>
+      </div>
+
+      <div id="analysisView" style="display:none;"></div>
+
+      <div class="custom-section">
+        <p class="section-title" style="margin-bottom: 12px;">Analyse custom text</p>
+        <textarea class="custom-textarea" id="customText"
+          placeholder="Type or paste any review text to analyse it instantly…"></textarea>
+        <div class="custom-row">
+          <div class="custom-result" id="customResult"></div>
+          <button class="btn btn-sm" id="customBtn" disabled>→ Analyse</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    /* ── Sentiment lexicon (keyword-based) ────────────────── */
+    const POSITIVE_WORDS = [
+      'good','great','excellent','amazing','wonderful','fantastic','love','loved','best',
+      'beautiful','awesome','brilliant','perfect','superb','enjoy','enjoyed','nice','happy',
+      'impressive','outstanding','remarkable','incredible','phenomenal','masterpiece',
+      'thrilling','exciting','fun','entertaining','compelling','gripping','charming',
+      'touching','heartwarming','delightful','stunning','magnificent','splendid',
+      'flawless','genius','riveting','captivating','memorable','brilliant','powerful',
+      'recommend','recommended','must-see','fantastic','worth','pleasure','satisfying',
+      'bravo','superbly','triumph','celebrate','praise','acclaim','acclaimed'
+    ];
+
+    const NEGATIVE_WORDS = [
+      'bad','terrible','awful','horrible','worst','hate','hated','boring','bored',
+      'disappointing','disappointed','poor','ugly','waste','pathetic','dreadful',
+      'mediocre','flat','dull','lifeless','uninspired','predictable','cliché',
+      'overrated','overhyped','annoying','irritating','tedious','tedious','bland',
+      'weak','unconvincing','unmemorable','forgettable','lackluster','shallow',
+      'nonsensical','ridiculous','laughable','painful','regret','regrettable',
+      'worst','atrocious','abysmal','disaster','flop','skip','avoid','waste',
+      'unbearable','slow','drag','dragged','dragging','clunky','stiff'
+    ];
+
+    const INTENSIFIERS = ['very','really','extremely','incredibly','absolutely','totally','utterly','completely'];
+    const NEGATORS = ['not','no','never','neither','nor','hardly','barely','scarcely'];
+
+    function analyzeSentiment(text) {
+      const words = text.toLowerCase().replace(/[^a-z\s'-]/g, '').split(/\s+/).filter(Boolean);
+      let posScore = 0;
+      let negScore = 0;
+      let negated = false;
+
+      for (let i = 0; i < words.length; i++) {
+        const w = words[i];
+        if (NEGATORS.includes(w)) { negated = true; continue; }
+        const isIntensifier = INTENSIFIERS.includes(w);
+        const multiplier = isIntensifier ? 1.5 : 1;
+
+        if (POSITIVE_WORDS.includes(w)) {
+          if (negated) negScore += 1 * multiplier;
+          else posScore += 1 * multiplier;
+          negated = false;
+        } else if (NEGATIVE_WORDS.includes(w)) {
+          if (negated) posScore += 0.5 * multiplier;
+          else negScore += 1 * multiplier;
+          negated = false;
+        } else {
+          negated = false;
+        }
+      }
+
+      const total = posScore + negScore || 1;
+      const posProb = posScore / total;
+      const negProb = negScore / total;
+      const sentiment = posProb >= negProb ? 'positive' : 'negative';
+      const confidence = Math.max(posProb, negProb);
+
+      return {
+        sentiment,
+        score: confidence,
+        positive_probability: posProb,
+        negative_probability: negProb
+      };
+    }
+
+    /* ── Sample movie data ──────────────────────────────── */
+    const SAMPLE_MOVIES = [
+      { id: 1, title: "The Shawshank Redemption", year: "1994", rating: 9.3,
+        overview: "Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.",
+        reviews: [
+          { author: "CinematicSoul", text: "An absolutely masterpiece of cinema. The storytelling is brilliant and the performances are outstanding. Morgan Freeman and Tim Robbins deliver career-defining roles. This film is a testament to hope and perseverance." },
+          { author: "FilmFanatic92", text: "Great movie with a perfect ending. The pacing is excellent and every scene serves a purpose. One of the best films ever made, truly remarkable and unforgettable." },
+          { author: "MovieBuff2024", text: "I loved every minute of this film. The character development is superb and the emotional depth is incredible. A truly wonderful and moving experience that stays with you." },
+          { author: "ClassicViewer", text: "Good performances all around. The prison setting feels authentic and the story unfolds naturally. Very enjoyable and well-crafted film." },
+          { author: "ReviewerX", text: "Not bad but a bit slow in the middle. The ending is satisfying though. Decent movie overall with some nice moments." },
+          { author: "DarkCritic", text: "Overrated in my opinion. The pacing drags at times and some plot points feel predictable. It's a good film but not the masterpiece everyone claims." },
+          { author: "CasualWatcher", text: "Nice film. I liked the friendship between the characters. The escape scene was exciting and the ending was perfect." },
+          { author: "FilmStudent", text: "A beautiful and compelling story about hope. The cinematography is stunning and the score is perfect. An incredible achievement in filmmaking." }
+        ]
+      },
+      { id: 2, title: "Inception", year: "2010", rating: 8.8,
+        overview: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
+        reviews: [
+          { author: "DreamCritic", text: "Mind-bending brilliance! Christopher Nolan delivers an incredible and original sci-fi experience. The layers of dreams are fascinating and the action is thrilling." },
+          { author: "ActionLover", text: "Amazing visual effects and a gripping story. The rotating hallway scene is one of the most exciting sequences ever filmed. Truly outstanding work." },
+          { author: "SciFiGeek", text: "Great concept executed well. The ending leaves you thinking. Very entertaining and thought-provoking film with superb performances." },
+          { author: "MovieGoer", text: "Good movie but sometimes confusing. The action scenes are fantastic though. Worth watching for the incredible visual effects alone." },
+          { author: "CriticalEye", text: "Overhyped and convoluted. The plot tries too hard to be clever and the emotional core feels hollow. Predictable and disappointing." },
+          { author: "IndieFan", text: "Not my cup of tea. Too much action, not enough character development. The concept is interesting but the execution falls flat." },
+          { author: "BlockbusterFan", text: "Fun blockbuster with impressive visuals. Leonardo DiCaprio does a great job. Entertaining and exciting throughout." },
+          { author: "PhilosophyNerd", text: "A brilliant exploration of consciousness and reality. The dream architecture is fascinating and the emotional depth is powerful." }
+        ]
+      },
+      { id: 3, title: "The Dark Knight", year: "2008", rating: 9.0,
+        overview: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
+        reviews: [
+          { author: "BatmanFan", text: "Heath Ledger's Joker is the greatest villain performance ever. This film is a masterpiece of the superhero genre. Dark, thrilling, and absolutely brilliant." },
+          { author: "ActionJunkie", text: "Incredible action sequences and a gripping story. The hospital explosion scene is stunning. One of the best action films ever made." },
+          { author: "ComicReader", text: "The best Batman film period. The philosophical depth and moral complexity make this more than just a superhero movie. Outstanding." },
+          { author: "CasualFan", text: "Great movie, very entertaining. Heath Ledger steals every scene. The action is exciting and the story keeps you engaged." },
+          { author: "FilmCritic22", text: "Good film but overrated. The third act has some issues and the two-face subplot feels rushed. Still enjoyable though." },
+          { author: "PopcornFan", text: "Fun action movie with great villains. The Joker is terrifying and Batman is cool. Very entertaining blockbuster." },
+          { author: "SeriousViewer", text: "A powerful and thought-provoking film about chaos and order. The performances are phenomenal and the direction is masterful." },
+          { author: "BatmanHater", text: "Overrated superhero movie. Too dark and depressing. The action is good but the story is predictable and boring." }
+        ]
+      },
+      { id: 4, title: "Pulp Fiction", year: "1994", rating: 8.9,
+        overview: "The lives of two mob hitmen, a boxer, a gangster and his wife, and a pair of diner bandits intertwine in four tales of violence and redemption.",
+        reviews: [
+          { author: "TarantinoFan", text: "A masterpiece of independent cinema. The non-linear storytelling is genius and the dialogue is absolutely brilliant. One of the most original films ever made." },
+          { author: "DialogueLover", text: "The writing in this film is incredible. Every scene is memorable and the performances are perfect. Samuel L. Jackson is phenomenal." },
+          { author: "FilmBuff99", text: "Great movie with unique storytelling. The characters are fascinating and the dark humor is perfectly executed. A true classic." },
+          { author: "CasualViewer", text: "Good film but a bit confusing with the timeline. The violence is intense. entertaining overall with some great scenes." },
+          { author: "TraditionalFan", text: "Don't get the hype. The story is disjointed and the violence is gratuitous. Not as good as people say." },
+          { author: "ArtHouseFan", text: "Revolutionary filmmaking. The way Tarantino weaves these stories together is masterful. An incredible achievement." },
+          { author: "ActionFan", text: "Exciting and unpredictable. The adrenaline scene is legendary. A fun and thrilling ride from start to finish." },
+          { author: "OldSchoolViewer", text: "Overrated. Too much swearing and violence. The story doesn't make sense. Not enjoyable for me." }
+        ]
+      },
+      { id: 5, title: "Interstellar", year: "2014", rating: 8.6,
+        overview: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
+        reviews: [
+          { author: "SpaceNerd", text: "A breathtaking and emotional journey through space and time. The visuals are stunning and the scientific concepts are fascinating. A beautiful masterpiece." },
+          { author: "NolanFan", text: "Another incredible Nolan film. The father-daughter relationship at the core is touching and powerful. The space scenes are awe-inspiring." },
+          { author: "SciFiLover", text: "Amazing film with beautiful cinematography. The docking scene is one of the most tense sequences ever filmed. Truly magnificent." },
+          { author: "EmotionalViewer", text: "Beautiful and moving. I cried during the video scene. The score by Hans Zimmer is perfect. A wonderful experience." },
+          { author: "ScienceGeek", text: "Great visual spectacle but the science has some issues. The emotional parts are good but some dialogue is cheesy. Decent film." },
+          { author: "ActionFan", text: "Too slow for my taste. Beautiful visuals but the story drags. The ending is confusing and unsatisfying." },
+          { author: "CasualMovieGoer", text: "Nice movie with great effects. The black hole scene is incredible. A bit long but worth watching." },
+          { author: "FilmStudent", text: "A profound exploration of love, time, and sacrifice. The cinematography is stunning and the emotional core is powerful. Superb filmmaking." }
+        ]
+      },
+      { id: 6, title: "Parasite", year: "2019", rating: 8.5,
+        overview: "Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.",
+        reviews: [
+          { author: "WorldCinema", text: "A brilliant and original thriller. Bong Joon-ho delivers a masterclass in storytelling. The social commentary is powerful and the twists are incredible." },
+          { author: "IndieFan", text: "Outstanding film that defies genre expectations. The performances are perfect and the direction is flawless. A true masterpiece of modern cinema." },
+          { author: "ThrillerLover", text: "Edge-of-your-seat tension throughout. The way the film shifts from comedy to thriller is brilliant. Absolutely captivating and memorable." },
+          { author: "FilmCritic101", text: "Great movie with social commentary. The acting is superb and the script is clever. Very entertaining and thought-provoking." },
+          { author: "MainstreamFan", text: "Good film but overhyped. The subtitles are a bit distracting and the ending is dark. Decent movie overall." },
+          { author: "BlockbusterViewer", text: "Not what I expected. Too slow at times and the ending is disturbing. The acting is good though." },
+          { author: "ArtFilmFan", text: "A stunning achievement in filmmaking. Every frame is beautifully composed and the story unfolds with perfect precision. Masterful." },
+          { author: "CasualCritic", text: "Entertaining and unique. The humor works well and the thriller elements are gripping. A fun and smart film." }
+        ]
+      }
+    ];
+
+    /* ── App state ─────────────────────────────────────── */
+    let selectedMovie = null;
+    let analysisData = null;
+
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultsList = document.getElementById('resultsList');
+    const idleScreen = document.getElementById('idleScreen');
+    const analysisView = document.getElementById('analysisView');
+    const customText = document.getElementById('customText');
+    const customBtn = document.getElementById('customBtn');
+    const customResult = document.getElementById('customResult');
+
+    /* ── Search ────────────────────────────────────────── */
+    function doSearch() {
+      const q = searchInput.value.trim().toLowerCase();
+      if (!q) return;
+
+      const matches = SAMPLE_MOVIES.filter(m =>
+        m.title.toLowerCase().includes(q)
+      );
+
+      // If no exact match, show all as "browse"
+      const list = matches.length > 0 ? matches : SAMPLE_MOVIES;
+
+      resultsList.innerHTML = list.map(m => `
+        <div class="result-item ${selectedMovie?.id === m.id ? 'active' : ''}" data-id="${m.id}">
+          <div class="result-poster-placeholder">🎞</div>
+          <div class="result-info">
+            <div class="result-name">${m.title}</div>
+            <div class="result-meta">${m.year} · ⭐ ${m.rating}</div>
+          </div>
+        </div>
+      `).join('');
+
+      resultsList.querySelectorAll('.result-item').forEach(el => {
+        el.addEventListener('click', () => selectMovie(parseInt(el.dataset.id)));
+      });
+    }
+
+    searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+    searchBtn.addEventListener('click', doSearch);
+
+    /* ── Select movie → analyse ────────────────────────── */
+    function selectMovie(id) {
+      const movie = SAMPLE_MOVIES.find(m => m.id === id);
+      if (!movie) return;
+      selectedMovie = movie;
+
+      // Update sidebar active
+      resultsList.querySelectorAll('.result-item').forEach(el => {
+        el.classList.toggle('active', parseInt(el.dataset.id) === id);
+      });
+
+      idleScreen.style.display = 'none';
+      analysisView.style.display = 'block';
+      analysisView.innerHTML = `<div class="loading-bar"><div class="loading-bar-fill"></div></div>
+        <p style="font-size:14px;color:var(--muted);">Analysing reviews…</p>`;
+
+      // Simulate analysis delay
+      setTimeout(() => runAnalysis(movie), 600);
+    }
+
+    function runAnalysis(movie) {
+      const analysed = movie.reviews.map(r => ({
+        ...r,
+        ...analyzeSentiment(r.text)
+      }));
+
+      const posCount = analysed.filter(r => r.sentiment === 'positive').length;
+      const negCount = analysed.filter(r => r.sentiment === 'negative').length;
+      const total = analysed.length;
+      const posPct = Math.round((posCount / total) * 100);
+      const negPct = Math.round((negCount / total) * 100);
+      const avgConf = analysed.reduce((s, r) => s + r.score, 0) / total;
+      const overall = posCount >= negCount ? 'POSITIVE' : 'NEGATIVE';
+
+      const bestPos = analysed.filter(r => r.sentiment === 'positive').sort((a, b) => b.score - a.score)[0];
+      const bestNeg = analysed.filter(r => r.sentiment === 'negative').sort((a, b) => b.score - a.score)[0];
+
+      const isPos = overall === 'POSITIVE';
+      const isNeg = overall === 'NEGATIVE';
+
+      analysisView.innerHTML = `
+        <div class="movie-hero">
+          <div class="movie-poster-ph">🎞</div>
+          <div class="movie-info">
+            <div class="movie-title">${movie.title}</div>
+            <div class="movie-meta-row">
+              <span>📅 ${movie.year}</span>
+              <span>⭐ ${movie.rating}</span>
+              <span>💬 ${total} reviews analysed</span>
+            </div>
+            <p class="movie-overview">${movie.overview}</p>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Overall</div>
+            <div class="stat-val ${isPos ? 'pos' : isNeg ? 'neg' : 'neutral'}">${overall}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Positive</div>
+            <div class="stat-val pos">${posPct}%</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Negative</div>
+            <div class="stat-val neg">${negPct}%</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg Confidence</div>
+            <div class="stat-val plain">${(avgConf * 100).toFixed(1)}%</div>
+          </div>
+        </div>
+
+        <div class="sentiment-bar-wrap">
+          <div class="bar-label-row">
+            <span>😊 Positive — ${posCount} reviews</span>
+            <span>😞 Negative — ${negCount} reviews</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-pos" style="width: ${posPct}%"></div>
+            <div class="bar-neg" style="width: ${negPct}%"></div>
+          </div>
+        </div>
+
+        ${(bestPos || bestNeg) ? `
+          <p class="section-title">Best examples</p>
+          <div class="reviews-grid">
+            ${bestPos ? `
+              <div class="review-card pos-card">
+                <span class="review-tag pos">✓ Positive</span>
+                <div class="review-author">— ${bestPos.author}</div>
+                <div class="review-text">${bestPos.text}</div>
+                <div class="review-conf">Confidence: ${(bestPos.score * 100).toFixed(1)}%</div>
+              </div>` : ''}
+            ${bestNeg ? `
+              <div class="review-card neg-card">
+                <span class="review-tag neg">✗ Negative</span>
+                <div class="review-author">— ${bestNeg.author}</div>
+                <div class="review-text">${bestNeg.text}</div>
+                <div class="review-conf">Confidence: ${(bestNeg.score * 100).toFixed(1)}%</div>
+              </div>` : ''}
+          </div>` : ''}
+
+        <p class="section-title">All reviews</p>
+        <div class="detail-list">
+          ${analysed.map((d, i) => `
+            <div class="detail-row">
+              <span class="detail-num">#${i + 1}</span>
+              <span class="detail-badge ${d.sentiment === 'positive' ? 'pos' : 'neg'}">${d.sentiment}</span>
+              <div class="detail-track">
+                <div class="detail-fill ${d.sentiment === 'positive' ? 'pos' : 'neg'}" style="width: ${d.score * 100}%"></div>
+              </div>
+              <span class="detail-pct">${(d.score * 100).toFixed(0)}%</span>
+              <span class="detail-snippet">${d.text.slice(0, 60)}…</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    /* ── Custom text analysis ──────────────────────────── */
+    customText.addEventListener('input', () => {
+      customBtn.disabled = !customText.value.trim();
+    });
+
+    customBtn.addEventListener('click', () => {
+      const text = customText.value.trim();
+      if (!text) return;
+
+      const result = analyzeSentiment(text);
+      customResult.innerHTML = `
+        <span class="custom-badge ${result.sentiment === 'positive' ? 'pos' : 'neg'}">
+          ${result.sentiment.toUpperCase()}
+        </span>
+        <span class="custom-score">
+          ${result.sentiment === 'positive' ? '😊' : '😞'}&nbsp;
+          Score: ${(result.score * 100).toFixed(1)}%
+          &nbsp;·&nbsp;
+          Pos ${(result.positive_probability * 100).toFixed(0)}%
+          &nbsp;/&nbsp;
+          Neg ${(result.negative_probability * 100).toFixed(0)}%
+        </span>
+      `;
+    });
+
+    // Initialize with all movies listed
+    doSearch();
+  </script>
+</body>
+</html>
